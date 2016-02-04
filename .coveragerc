@@ -1,0 +1,7 @@
+[run]
+branch = True
+source = act
+omit = act/openstack/*
+
+[report]
+ignore_errors = True

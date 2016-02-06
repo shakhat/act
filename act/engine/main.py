@@ -33,8 +33,15 @@ class World(object):
     def __init__(self):
         self.storage = {}
 
-    def put(self, item):
+    def put(self, item, dependencies=None):
         self.storage[item.id] = item
+
+        if dependencies:
+            for dep in dependencies:
+                # dependencies are copies of storage objects!
+                real_dep = self.storage[dep.id]
+                real_dep.add_ref(item.id)
+                real_dep.unlock()
 
     def pop(self, item):
         del self.storage[item.id]
@@ -52,7 +59,7 @@ class World(object):
 
         items_by_types = collections.defaultdict(list)
         for item in self.storage.values():
-            if item.can_be_used():
+            if item.item_type in item_types and item.can_be_used():
                 items_by_types[item.item_type].append(item)
 
         items = [random.choice(v) for v in items_by_types.values()]
@@ -60,6 +67,9 @@ class World(object):
             item.lock()
 
         return items
+
+    def __repr__(self):
+        return str(self.storage)
 
 
 class Action(object):
@@ -69,9 +79,6 @@ class Action(object):
 
     def __init__(self):
         super(Action, self).__init__()
-
-        # if type(self).meta_type:
-        #     type(self).depends_on.add(type(self).meta_type)
 
     def get_weight(self):
         return self.weight
@@ -85,12 +92,18 @@ class Action(object):
     def act(self, items):
         LOG.info('act(%s)', items)
 
+    def get_operation_class(self):
+        return Operation
+
 
 class CreateAction(Action):
     weight = 0.9
 
     def __init__(self):
         super(CreateAction, self).__init__()
+
+    def get_operation_class(self):
+        return CreateOperation
 
 
 class CreateNet(CreateAction):
@@ -99,7 +112,8 @@ class CreateNet(CreateAction):
 
     def act(self, items):
         LOG.info('Create Net is called! %s', items)
-        return 'some net created'
+        net = dict(name='foo', id='1234')
+        return Item('net', net, ref_count_limit=10)
 
 
 class DoNothing(Action):
@@ -111,25 +125,42 @@ class DoNothing(Action):
 REGISTRY = [CreateNet(), DoNothing()]
 
 
+class Operation(object):
+    def __init__(self, item, dependencies):
+        self.item = item
+        self.dependencies = dependencies
+
+    def do(self, world):
+        pass
+
+
+class CreateOperation(Operation):
+    def do(self, world):
+        LOG.info('Add something to world')
+        world.put(self.item, self.dependencies)
+
+
 class Item(object):
-    def __init__(self, item_type, ref_count_limit=1000):
+    def __init__(self, item_type, payload, ref_count_limit=1000):
         self.item_type = item_type
+        self.payload = payload
         self.id = utils.make_id()
         self.refs = set()
         self.ref_count_limit = ref_count_limit
-        self.is_locked = False
+        self.lock_count = 0
 
     def __repr__(self):
-        return str(dict(id=self.id, item_type=self.item_type))
+        return str(dict(id=self.id, item_type=self.item_type,
+                        payload=self.payload, ref_count=len(self.refs)))
 
     def lock(self):
-        self.is_locked = True
+        self.lock_count += 1
 
     def unlock(self):
-        self.is_locked = False
+        self.lock_count -= 1
 
     def can_be_used(self):
-        return (not self.is_locked) and len(self.refs) < self.ref_count_limit
+        return len(self.refs) + self.lock_count < self.ref_count_limit
 
     def add_ref(self, other_id):
         self.refs.add(other_id)
@@ -148,17 +179,25 @@ class Worker(multiprocessing.Process):
     def run(self):
         proc_name = self.name
         while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
+            task = self.task_queue.get()
+
+            if task is None:
                 # Poison pill means shutdown
                 LOG.info('%s: Exiting', proc_name)
                 self.task_queue.task_done()
                 break
-            LOG.info('%s executing action %s', proc_name, next_task)
-            result = next_task.action.act(next_task.items)
-            LOG.info('%s put result %s into queue', proc_name, result)
+
+            LOG.info('%s executing action %s', proc_name, task)
+
+            action = task.action
+            action_result = action.act(task.items)
+            operation_class = action.get_operation_class()
+            operation = operation_class(item=action_result,
+                                        dependencies=task.items)
+
+            LOG.info('%s put operation %s into queue', proc_name, operation)
             self.task_queue.task_done()
-            self.result_queue.put(result)
+            self.result_queue.put(operation)
         return
 
 
@@ -176,8 +215,9 @@ def produce_task(world, actions, task_queue):
     task_queue.put(Task(action=action, items=items))
 
 
-def handle_operation(op):
+def handle_operation(op, world):
     LOG.info('Handle: %s', op)
+    op.do(world)
 
 
 def process():
@@ -196,7 +236,7 @@ def process():
     for action_klazz in REGISTRY:
         meta_type = action_klazz.get_meta_type()
         if meta_type:
-            item = Item(meta_type)
+            item = Item(meta_type, None)
             default_items.append(item)
 
     world = World()
@@ -204,15 +244,17 @@ def process():
         world.put(item)
 
     for i in range(workers_count):
-        result_queue.put('dummy')
+        result_queue.put(Operation(None, None))
 
-    steps = 4
+    steps = 10
 
     for i in range(steps):
-        res = result_queue.get()
-        handle_operation(res)
+        operation = result_queue.get()
+        handle_operation(operation, world)
 
         produce_task(world, REGISTRY, task_queue)
+
+    # todo pick remainders from result_queue
 
     # Add a poison pill for each worker
     for i in range(workers_count):
@@ -220,6 +262,8 @@ def process():
 
     # Wait for all of the tasks to finish
     task_queue.join()
+
+    LOG.info('World: %s', world)
 
 
 def main():

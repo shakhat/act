@@ -157,7 +157,7 @@ def random_string(length=6):
     return ''.join(random.sample('adefikmoprstuz', length))
 
 
-def make_record_id():
+def make_id():
     return str(uuid.uuid4())
 
 

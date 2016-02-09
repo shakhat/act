@@ -44,29 +44,15 @@ class World(object):
                 real_dep.unlock()
 
     def pop(self, item):
+        for ref_id in self.storage[item.id].refs:
+            self.storage[ref_id].del_ref(item.id)
+
         del self.storage[item.id]
 
-    def get_item_types(self):
-        item_types = set()
+    def filter_items(self, item_types):
         for item in self.storage.values():
-            if item.can_be_used():
-                item_types.add(item.item_type)
-        return item_types
-
-    def pick_items(self, item_types):
-        if not item_types:
-            return
-
-        items_by_types = collections.defaultdict(list)
-        for item in self.storage.values():
-            if item.item_type in item_types and item.can_be_used():
-                items_by_types[item.item_type].append(item)
-
-        items = [random.choice(v) for v in items_by_types.values()]
-        for item in items:
-            item.lock()
-
-        return items
+            if not item_types or item.item_type in item_types:
+                yield item
 
     def __repr__(self):
         return str(self.storage)
@@ -75,7 +61,7 @@ class World(object):
 class Action(object):
     weight = 0.1
     meta_type = None
-    depends_on = set()
+    depends_on = None
 
     def __init__(self):
         super(Action, self).__init__()
@@ -88,6 +74,9 @@ class Action(object):
 
     def get_depends_on(self):
         return self.depends_on
+
+    def filter_items(self, items):
+        pass
 
     def act(self, items):
         LOG.info('act(%s)', items)
@@ -102,8 +91,38 @@ class CreateAction(Action):
     def __init__(self):
         super(CreateAction, self).__init__()
 
+    def filter_items(self, items):
+        for item in items:
+            if len(item.refs) + item.lock_count < item.ref_count_limit:
+                yield item
+
     def get_operation_class(self):
         return CreateOperation
+
+
+class DeleteAction(Action):
+    weight = 0.1
+
+    def filter_items(self, items):
+        for item in items:
+            if not item.refs and not item.lock_count:
+                yield item
+
+    def get_operation_class(self):
+        return DeleteOperation
+
+
+class IdempotantAction(Action):
+    def filter_items(self, items):
+        for item in items:
+            yield item
+
+
+class IdempotantBlockingAction(Action):
+    def filter_items(self, items):
+        for item in items:
+            if not item.lock_count:
+                yield item
 
 
 class CreateNet(CreateAction):
@@ -116,13 +135,21 @@ class CreateNet(CreateAction):
         return Item('net', net, ref_count_limit=10)
 
 
-class DoNothing(Action):
+class DeleteNet(DeleteAction):
+    depends_on = {'net'}
+
+    def act(self, items):
+        assert len(items) == 1
+        LOG.info('Delete net is called! %s', items)
+
+
+class DoNothing(IdempotantAction):
 
     def act(self, items):
         LOG.info('Do Nothing is called! %s', items)
 
 
-REGISTRY = [CreateNet(), DoNothing()]
+REGISTRY = [CreateNet(), DeleteNet(), DoNothing()]
 
 
 class Operation(object):
@@ -138,6 +165,12 @@ class CreateOperation(Operation):
     def do(self, world):
         LOG.info('Add something to world')
         world.put(self.item, self.dependencies)
+
+
+class DeleteOperation(Operation):
+    def do(self, world):
+        LOG.info('Delete item in world')
+        world.pop(self.dependencies[0])
 
 
 class Item(object):
@@ -159,9 +192,6 @@ class Item(object):
     def unlock(self):
         self.lock_count -= 1
 
-    def can_be_used(self):
-        return len(self.refs) + self.lock_count < self.ref_count_limit
-
     def add_ref(self, other_id):
         self.refs.add(other_id)
 
@@ -181,11 +211,15 @@ class Worker(multiprocessing.Process):
         while True:
             task = self.task_queue.get()
 
-            if task is None:
+            if task == StopTask:
                 # Poison pill means shutdown
                 LOG.info('%s: Exiting', proc_name)
                 self.task_queue.task_done()
                 break
+
+            if task == NoOpTask:
+                self.result_queue.put(Operation(None, None))
+                continue
 
             LOG.info('%s executing action %s', proc_name, task)
 
@@ -202,17 +236,49 @@ class Worker(multiprocessing.Process):
 
 
 Task = collections.namedtuple('Task', ['action', 'items'])
+NoOpTask = Task(action=None, items=None)
+StopTask = None
 
 
-def produce_task(world, actions, task_queue):
-    available_item_types = world.get_item_types()
-    available_actions = [a for a in actions
-                         if a.get_depends_on() <= available_item_types]
+def produce_task(world, actions):
 
-    action = random.choice(available_actions)
-    items = world.pick_items(action.get_depends_on())
+    available_actions = {}
+    for action in actions:
+        item_types = action.get_depends_on()
+        world_items = world.filter_items(item_types)
+        filtered_items = list(action.filter_items(world_items))
 
-    task_queue.put(Task(action=action, items=items))
+        if not filtered_items:
+            continue
+
+        LOG.info('Action: %s, item-types: %s, filtered_items: %s', action,
+                 item_types, filtered_items)
+
+        # check that filtered_items contain items of *all* item_types
+        filtered_item_types = set(i.item_type for i in filtered_items)
+        if item_types and filtered_item_types != item_types:
+            continue
+
+        available_actions[action] = filtered_items
+
+    if available_actions:
+        # todo choose according to action's weight
+        chosen_action = random.choice(available_actions.keys())
+        available_items = available_actions[chosen_action]
+
+        # pick one random item per type
+        items_per_type = collections.defaultdict(list)
+        for item in available_items:
+            items_per_type[item.item_type].append(item)
+
+        chosen_items = [random.choice(v) for v in items_per_type.values()]
+
+        task = Task(action=chosen_action, items=chosen_items)
+    else:
+        # nothing to do
+        task = NoOpTask
+
+    return task
 
 
 def handle_operation(op, world):
@@ -252,13 +318,13 @@ def process():
         operation = result_queue.get()
         handle_operation(operation, world)
 
-        produce_task(world, REGISTRY, task_queue)
+        task_queue.put(produce_task(world, REGISTRY))
 
     # todo pick remainders from result_queue
 
     # Add a poison pill for each worker
     for i in range(workers_count):
-        task_queue.put(None)
+        task_queue.put(StopTask)
 
     # Wait for all of the tasks to finish
     task_queue.join()

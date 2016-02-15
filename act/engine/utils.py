@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import bisect
 import functools
 import itertools
 import logging as std_logging
@@ -212,3 +213,15 @@ def algebraic_product(**kwargs):
 
 def strict(s):
     return re.sub(r'[^\w\d]+', '_', re.sub(r'\(.+\)', '', s)).lower()
+
+
+def weighted_random_choice(items):
+    totals = []
+    running_total = 0
+
+    for item in items:
+        running_total += item.weight
+        totals.append(running_total)
+
+    rnd = random.random() * running_total
+    return items[bisect.bisect_right(totals, rnd)]

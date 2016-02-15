@@ -262,8 +262,7 @@ def produce_task(world, actions):
         available_actions[action] = filtered_items
 
     if available_actions:
-        # todo choose according to action's weight
-        chosen_action = random.choice(available_actions.keys())
+        chosen_action = utils.weighted_random_choice(available_actions.keys())
         available_items = available_actions[chosen_action]
 
         # pick one random item per type

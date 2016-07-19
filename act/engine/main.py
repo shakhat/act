@@ -93,7 +93,7 @@ class CreateAction(Action):
 
     def filter_items(self, items):
         for item in items:
-            if len(item.refs) + item.lock_count < item.ref_count_limit:
+            if item.can_be_used():
                 yield item
 
     def get_operation_class(self):
@@ -105,7 +105,7 @@ class DeleteAction(Action):
 
     def filter_items(self, items):
         for item in items:
-            if not item.refs and not item.lock_count:
+            if not item.has_dependants() and not item.is_locked():
                 yield item
 
     def get_operation_class(self):
@@ -121,7 +121,7 @@ class IdempotantAction(Action):
 class IdempotantBlockingAction(Action):
     def filter_items(self, items):
         for item in items:
-            if not item.lock_count:
+            if not item.is_locked():
                 yield item
 
 
@@ -177,10 +177,10 @@ class Item(object):
     def __init__(self, item_type, payload, ref_count_limit=1000):
         self.item_type = item_type
         self.payload = payload
-        self.id = utils.make_id()
-        self.refs = set()
-        self.ref_count_limit = ref_count_limit
-        self.lock_count = 0
+        self.id = utils.make_id()  # unique id
+        self.refs = set()  # items that depend on this one
+        self.ref_count_limit = ref_count_limit  # max number of dependants
+        self.lock_count = 0  # number of locks taken by operations
 
     def __repr__(self):
         return str(dict(id=self.id, item_type=self.item_type,
@@ -197,6 +197,16 @@ class Item(object):
 
     def del_ref(self, other_id):
         self.refs.pop(other_id)
+
+    def has_dependants(self):
+        return len(self.refs) > 0
+
+    def is_locked(self):
+        return self.lock_count > 0
+
+    def can_be_used(self):
+        # True if it's possible to add more dependants to this item
+        return len(self.refs) + self.lock_count < self.ref_count_limit
 
 
 class Worker(multiprocessing.Process):
@@ -271,6 +281,9 @@ def produce_task(world, actions):
             items_per_type[item.item_type].append(item)
 
         chosen_items = [random.choice(v) for v in items_per_type.values()]
+
+        for item in chosen_items:
+            item.lock()
 
         task = Task(action=chosen_action, items=chosen_items)
     else:

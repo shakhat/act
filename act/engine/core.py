@@ -79,7 +79,7 @@ def handle_operation(op, world):
     op.do(world)
 
 
-def work(task):
+def do_action(task):
     # does real action inside worker processes
     LOG.info('Executing action %s', task)
 
@@ -93,6 +93,9 @@ def work(task):
 
 
 def process():
+    # the entry-point to engine
+    registry.init()
+
     # initialize the world
     default_items = []
     for action in registry.get_actions():
@@ -117,7 +120,7 @@ def process():
 
     for x in range(seed):
         next_task = produce_task(world, registry.get_actions())
-        async_results.append(task_q.enqueue(work, next_task))
+        async_results.append(task_q.enqueue(do_action, next_task))
 
     LOG.info('Starting the work, steps: %s', steps)
 
@@ -141,7 +144,7 @@ def process():
                 counter += 1
                 if counter < steps:
                     next_task = produce_task(world, registry.get_actions())
-                    nx.append(task_q.enqueue(work, next_task))
+                    nx.append(task_q.enqueue(do_action, next_task))
                     proceed = True
 
         async_results = nx

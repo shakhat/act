@@ -45,6 +45,9 @@ class Action(object):
     def get_operation_class(self):
         return operations.Operation
 
+    def __repr__(self):
+        return type(self).__name__
+
 
 class CreateAction(Action):
     weight = 0.9

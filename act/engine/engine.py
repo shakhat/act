@@ -23,6 +23,7 @@ from act.engine import config
 from act.engine import consts
 from act.engine import main
 from act.engine import utils
+from act.engine import world as world_pkg
 
 LOG = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ def process():
             item = main.Item(meta_type, None)
             default_items.append(item)
 
-    world = main.World()
+    world = world_pkg.World()
     for item in default_items:
         world.put(item)
 

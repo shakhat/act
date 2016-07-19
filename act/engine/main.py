@@ -26,35 +26,6 @@ OPERATION_ACT = 'act'
 OPERATION_RESPONSE = 'response'
 
 
-class World(object):
-    def __init__(self):
-        self.storage = {}
-
-    def put(self, item, dependencies=None):
-        self.storage[item.id] = item
-
-        if dependencies:
-            for dep in dependencies:
-                # dependencies are copies of storage objects!
-                real_dep = self.storage[dep.id]
-                real_dep.add_ref(item.id)
-                real_dep.unlock()
-
-    def pop(self, item):
-        for ref_id in self.storage[item.id].refs:
-            self.storage[ref_id].del_ref(item.id)
-
-        del self.storage[item.id]
-
-    def filter_items(self, item_types):
-        for item in self.storage.values():
-            if not item_types or item.item_type in item_types:
-                yield item
-
-    def __repr__(self):
-        return str(self.storage)
-
-
 class Action(object):
     weight = 0.1
     meta_type = None

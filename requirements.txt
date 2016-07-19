@@ -12,4 +12,5 @@ oslo.log>=1.12.0 # Apache-2.0
 oslo.serialization>=1.10.0 # Apache-2.0
 oslo.utils!=2.6.0,>=2.4.0 # Apache-2.0
 PyYAML>=3.1.0
+rq
 six>=1.9.0

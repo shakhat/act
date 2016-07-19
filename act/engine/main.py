@@ -1,5 +1,3 @@
-# Copyright (c) 2016 OpenStack Foundation
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,12 +12,11 @@
 # limitations under the License.
 
 import collections
-import multiprocessing
 import random
+import time
 
 from oslo_log import log as logging
 
-from act.engine import config
 from act.engine import utils
 
 
@@ -132,6 +129,7 @@ class CreateNet(CreateAction):
     def act(self, items):
         LOG.info('Create Net is called! %s', items)
         net = dict(name='foo', id='1234')
+        time.sleep(random.random())
         return Item('net', net, ref_count_limit=10)
 
 
@@ -158,18 +156,18 @@ class Operation(object):
         self.dependencies = dependencies
 
     def do(self, world):
-        pass
+        LOG.info('Doing nothing')
 
 
 class CreateOperation(Operation):
     def do(self, world):
-        LOG.info('Add something to world')
+        LOG.info('Add to the world: %s', self.item)
         world.put(self.item, self.dependencies)
 
 
 class DeleteOperation(Operation):
     def do(self, world):
-        LOG.info('Delete item in world')
+        LOG.info('Delete in the world: %s', self.dependencies[0])
         world.pop(self.dependencies[0])
 
 
@@ -209,146 +207,18 @@ class Item(object):
         return len(self.refs) + self.lock_count < self.ref_count_limit
 
 
-class Worker(multiprocessing.Process):
+def work(task):
+    LOG.info('Executing action %s', task)
 
-    def __init__(self, task_queue, result_queue):
-        multiprocessing.Process.__init__(self)
-        self.task_queue = task_queue
-        self.result_queue = result_queue
+    action = task.action
+    action_result = action.act(task.items)
+    operation_class = action.get_operation_class()
+    operation = operation_class(item=action_result, dependencies=task.items)
 
-    def run(self):
-        proc_name = self.name
-        while True:
-            task = self.task_queue.get()
-
-            if task == StopTask:
-                # Poison pill means shutdown
-                LOG.info('%s: Exiting', proc_name)
-                self.task_queue.task_done()
-                break
-
-            if task == NoOpTask:
-                self.result_queue.put(Operation(None, None))
-                continue
-
-            LOG.info('%s executing action %s', proc_name, task)
-
-            action = task.action
-            action_result = action.act(task.items)
-            operation_class = action.get_operation_class()
-            operation = operation_class(item=action_result,
-                                        dependencies=task.items)
-
-            LOG.info('%s put operation %s into queue', proc_name, operation)
-            self.task_queue.task_done()
-            self.result_queue.put(operation)
-        return
+    LOG.info('Operation %s', operation)
+    return operation
 
 
 Task = collections.namedtuple('Task', ['action', 'items'])
 NoOpTask = Task(action=None, items=None)
 StopTask = None
-
-
-def produce_task(world, actions):
-
-    available_actions = {}
-    for action in actions:
-        item_types = action.get_depends_on()
-        world_items = world.filter_items(item_types)
-        filtered_items = list(action.filter_items(world_items))
-
-        if not filtered_items:
-            continue
-
-        LOG.info('Action: %s, item-types: %s, filtered_items: %s', action,
-                 item_types, filtered_items)
-
-        # check that filtered_items contain items of *all* item_types
-        filtered_item_types = set(i.item_type for i in filtered_items)
-        if item_types and filtered_item_types != item_types:
-            continue
-
-        available_actions[action] = filtered_items
-
-    if available_actions:
-        chosen_action = utils.weighted_random_choice(available_actions.keys())
-        available_items = available_actions[chosen_action]
-
-        # pick one random item per type
-        items_per_type = collections.defaultdict(list)
-        for item in available_items:
-            items_per_type[item.item_type].append(item)
-
-        chosen_items = [random.choice(v) for v in items_per_type.values()]
-
-        for item in chosen_items:
-            item.lock()
-
-        task = Task(action=chosen_action, items=chosen_items)
-    else:
-        # nothing to do
-        task = NoOpTask
-
-    return task
-
-
-def handle_operation(op, world):
-    LOG.info('Handle: %s', op)
-    op.do(world)
-
-
-def process():
-    # Establish communication queues
-    task_queue = multiprocessing.JoinableQueue()
-    result_queue = multiprocessing.Queue()
-
-    # Start workers
-    workers_count = 2  # multiprocessing.cpu_count() * 2
-    LOG.info('Creating %d workers' % workers_count)
-    workers = [Worker(task_queue, result_queue) for i in range(workers_count)]
-    for w in workers:
-        w.start()
-
-    default_items = []
-    for action_klazz in REGISTRY:
-        meta_type = action_klazz.get_meta_type()
-        if meta_type:
-            item = Item(meta_type, None)
-            default_items.append(item)
-
-    world = World()
-    for item in default_items:
-        world.put(item)
-
-    for i in range(workers_count):
-        result_queue.put(Operation(None, None))
-
-    steps = 10
-
-    for i in range(steps):
-        operation = result_queue.get()
-        handle_operation(operation, world)
-
-        task_queue.put(produce_task(world, REGISTRY))
-
-    # todo pick remainders from result_queue
-
-    # Add a poison pill for each worker
-    for i in range(workers_count):
-        task_queue.put(StopTask)
-
-    # Wait for all of the tasks to finish
-    task_queue.join()
-
-    LOG.info('World: %s', world)
-
-
-def main():
-    utils.init_config_and_logging(config.MAIN_OPTS)
-
-    process()
-
-
-if __name__ == "__main__":
-    main()

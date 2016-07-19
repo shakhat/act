@@ -21,6 +21,7 @@ import rq
 
 from act.engine import config
 from act.engine import consts
+from act.engine import item as item_pkg
 from act.engine import main
 from act.engine import utils
 from act.engine import world as world_pkg
@@ -81,7 +82,7 @@ def process():
     for action_klazz in main.REGISTRY:
         meta_type = action_klazz.get_meta_type()
         if meta_type:
-            item = main.Item(meta_type, None)
+            item = item_pkg.Item(meta_type, None)
             default_items.append(item)
 
     world = world_pkg.World()

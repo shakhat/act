@@ -18,7 +18,7 @@ import time
 from oslo_log import log as logging
 
 from act.engine import actions
-from act.engine import utils
+from act.engine import item as item_pkg
 
 
 LOG = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class CreateNet(actions.CreateAction):
         LOG.info('Create Net is called! %s', items)
         net = dict(name='foo', id='1234')
         time.sleep(random.random())
-        return Item('net', net, ref_count_limit=10)
+        return item_pkg.Item('net', net, ref_count_limit=10)
 
 
 class DeleteNet(actions.DeleteAction):
@@ -53,42 +53,6 @@ class DoNothing(actions.IdempotantAction):
 
 
 REGISTRY = [CreateNet(), DeleteNet(), DoNothing()]
-
-
-class Item(object):
-    def __init__(self, item_type, payload, ref_count_limit=1000):
-        self.item_type = item_type
-        self.payload = payload
-        self.id = utils.make_id()  # unique id
-        self.refs = set()  # items that depend on this one
-        self.ref_count_limit = ref_count_limit  # max number of dependants
-        self.lock_count = 0  # number of locks taken by operations
-
-    def __repr__(self):
-        return str(dict(id=self.id, item_type=self.item_type,
-                        payload=self.payload, ref_count=len(self.refs)))
-
-    def lock(self):
-        self.lock_count += 1
-
-    def unlock(self):
-        self.lock_count -= 1
-
-    def add_ref(self, other_id):
-        self.refs.add(other_id)
-
-    def del_ref(self, other_id):
-        self.refs.pop(other_id)
-
-    def has_dependants(self):
-        return len(self.refs) > 0
-
-    def is_locked(self):
-        return self.lock_count > 0
-
-    def can_be_used(self):
-        # True if it's possible to add more dependants to this item
-        return len(self.refs) + self.lock_count < self.ref_count_limit
 
 
 def work(task):

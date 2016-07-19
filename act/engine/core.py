@@ -20,12 +20,15 @@ import rq
 
 from act.engine import consts
 from act.engine import item as item_pkg
-from act.engine import main
 from act.engine import registry
 from act.engine import utils
 from act.engine import world as world_pkg
 
 LOG = logging.getLogger(__name__)
+
+
+Task = collections.namedtuple('Task', ['action', 'items'])
+NoOpTask = Task(action=None, items=None)
 
 
 def produce_task(world, actions):
@@ -60,10 +63,10 @@ def produce_task(world, actions):
 
         chosen_items = [random.choice(v) for v in items_per_type.values()]
 
-        task = main.Task(action=chosen_action, items=chosen_items)
+        task = Task(action=chosen_action, items=chosen_items)
     else:
         # nothing to do
-        task = main.NoOpTask
+        task = NoOpTask
 
     LOG.info('Produced task: %s', task)
 

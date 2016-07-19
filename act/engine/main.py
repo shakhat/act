@@ -17,6 +17,7 @@ import time
 
 from oslo_log import log as logging
 
+from act.engine import actions
 from act.engine import utils
 
 
@@ -26,74 +27,7 @@ OPERATION_ACT = 'act'
 OPERATION_RESPONSE = 'response'
 
 
-class Action(object):
-    weight = 0.1
-    meta_type = None
-    depends_on = None
-
-    def __init__(self):
-        super(Action, self).__init__()
-
-    def get_weight(self):
-        return self.weight
-
-    def get_meta_type(self):
-        return self.meta_type
-
-    def get_depends_on(self):
-        return self.depends_on
-
-    def filter_items(self, items):
-        pass
-
-    def act(self, items):
-        LOG.info('act(%s)', items)
-
-    def get_operation_class(self):
-        return Operation
-
-
-class CreateAction(Action):
-    weight = 0.9
-
-    def __init__(self):
-        super(CreateAction, self).__init__()
-
-    def filter_items(self, items):
-        for item in items:
-            if item.can_be_used():
-                yield item
-
-    def get_operation_class(self):
-        return CreateOperation
-
-
-class DeleteAction(Action):
-    weight = 0.1
-
-    def filter_items(self, items):
-        for item in items:
-            if not item.has_dependants() and not item.is_locked():
-                yield item
-
-    def get_operation_class(self):
-        return DeleteOperation
-
-
-class IdempotantAction(Action):
-    def filter_items(self, items):
-        for item in items:
-            yield item
-
-
-class IdempotantBlockingAction(Action):
-    def filter_items(self, items):
-        for item in items:
-            if not item.is_locked():
-                yield item
-
-
-class CreateNet(CreateAction):
+class CreateNet(actions.CreateAction):
     meta_type = 'meta_net'
     depends_on = {'meta_net'}
 
@@ -104,7 +38,7 @@ class CreateNet(CreateAction):
         return Item('net', net, ref_count_limit=10)
 
 
-class DeleteNet(DeleteAction):
+class DeleteNet(actions.DeleteAction):
     depends_on = {'net'}
 
     def act(self, items):
@@ -112,34 +46,13 @@ class DeleteNet(DeleteAction):
         LOG.info('Delete net is called! %s', items)
 
 
-class DoNothing(IdempotantAction):
+class DoNothing(actions.IdempotantAction):
 
     def act(self, items):
         LOG.info('Do Nothing is called! %s', items)
 
 
 REGISTRY = [CreateNet(), DeleteNet(), DoNothing()]
-
-
-class Operation(object):
-    def __init__(self, item, dependencies):
-        self.item = item
-        self.dependencies = dependencies
-
-    def do(self, world):
-        LOG.info('Doing nothing')
-
-
-class CreateOperation(Operation):
-    def do(self, world):
-        LOG.info('Add to the world: %s', self.item)
-        world.put(self.item, self.dependencies)
-
-
-class DeleteOperation(Operation):
-    def do(self, world):
-        LOG.info('Delete in the world: %s', self.dependencies[0])
-        world.pop(self.dependencies[0])
 
 
 class Item(object):

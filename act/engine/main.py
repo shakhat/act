@@ -55,18 +55,6 @@ class DoNothing(actions.IdempotantAction):
 REGISTRY = [CreateNet(), DeleteNet(), DoNothing()]
 
 
-def work(task):
-    LOG.info('Executing action %s', task)
-
-    action = task.action
-    action_result = action.act(task.items)
-    operation_class = action.get_operation_class()
-    operation = operation_class(item=action_result, dependencies=task.items)
-
-    LOG.info('Operation %s', operation)
-    return operation
-
-
 Task = collections.namedtuple('Task', ['action', 'items'])
 NoOpTask = Task(action=None, items=None)
 StopTask = None

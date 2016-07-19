@@ -1,5 +1,3 @@
-# Copyright (c) 2016 OpenStack Foundation
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,6 +38,10 @@ class Yaml(types.String):
 
 
 COMMON_OPTS = [
+    cfg.StrOpt('redis-host', default=utils.env('ACT_REDIS_HOST'),
+               help='Redis server host name'),
+    cfg.IntOpt('redis-port', default=utils.env('ACT_REDIS_PORT'),
+               help='Redis server port number'),
 ]
 
 OPENSTACK_OPTS = [
@@ -99,7 +101,8 @@ SCENARIO_OPTS = [
                    type_filter=lambda x: x.endswith('.yaml'))),
 ]
 
-MAIN_OPTS = COMMON_OPTS + OPENSTACK_OPTS + SCENARIO_OPTS
+ENGINE_OPTS = COMMON_OPTS + OPENSTACK_OPTS + SCENARIO_OPTS
+WORKER_OPTS = COMMON_OPTS
 
 
 def list_opts():

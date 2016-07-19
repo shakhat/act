@@ -11,10 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import rq
-
-if __name__ == '__main__':
-    # Tell rq what Redis connection to use
-    with rq.Connection():
-        q = rq.Queue('tasks')
-        rq.Worker(q).work()
+TASK_QUEUE_NAME = 'act_tasks'
+FAILURE_QUEUE_NAME = 'failed'  # rq default queue name for failures

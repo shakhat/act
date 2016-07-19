@@ -1,5 +1,3 @@
-# Copyright (c) 2016 OpenStack Foundation
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,11 +17,12 @@ import itertools
 import logging as std_logging
 import os
 import random
+import re
 import uuid
 
 from oslo_config import cfg
 from oslo_log import log as logging
-import re
+import redis
 import six
 import yaml
 
@@ -225,3 +224,8 @@ def weighted_random_choice(items):
 
     rnd = random.random() * running_total
     return items[bisect.bisect_right(totals, rnd)]
+
+
+def make_redis_connection(**kwargs):
+    kwargs = dict((k, v) for k, v in kwargs.items() if v)
+    return redis.Redis(**kwargs)

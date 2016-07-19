@@ -15,10 +15,12 @@ import collections
 import random
 import time
 
+from oslo_config import cfg
 from oslo_log import log as logging
 import rq
 
 from act.engine import config
+from act.engine import consts
 from act.engine import main
 from act.engine import utils
 
@@ -89,8 +91,8 @@ def process():
     steps = 10
     seed = 2
     async_results = []
-    task_q = rq.Queue('tasks')
-    failed_q = rq.Queue('failed')
+    task_q = rq.Queue(consts.TASK_QUEUE_NAME)
+    failed_q = rq.Queue(consts.FAILURE_QUEUE_NAME)
     failed_q.empty()
 
     LOG.info('Seeding initial items: %s', seed)
@@ -136,12 +138,14 @@ def process():
 
 
 def run():
-    utils.init_config_and_logging(config.MAIN_OPTS)
+    utils.init_config_and_logging(config.ENGINE_OPTS)
 
-    process()
+    redis_connection = utils.make_redis_connection(host=cfg.CONF.redis_host,
+                                                   port=cfg.CONF.redis_port)
+    with rq.Connection(redis_connection):
+        LOG.info('Connected to Redis')
+        process()
 
 
 if __name__ == '__main__':
-    # Tell RQ what Redis connection to use
-    with rq.Connection():
-        run()
+    run()

@@ -11,17 +11,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
+import random
+import time
 
 from oslo_log import log as logging
+
+from act.engine import actions
+from act.engine import item
 
 
 LOG = logging.getLogger(__name__)
 
-OPERATION_ACT = 'act'
-OPERATION_RESPONSE = 'response'
+
+class CreateNetwork(actions.CreateAction):
+    meta_type = 'meta_net'
+    depends_on = {'meta_net'}
+
+    def act(self, items):
+        LOG.info('Create Network is called! %s', items)
+        net = dict(name='foo', id='1234')
+        time.sleep(random.random())
+        return item.Item('net', net, ref_count_limit=10)
 
 
-Task = collections.namedtuple('Task', ['action', 'items'])
-NoOpTask = Task(action=None, items=None)
-StopTask = None
+class DeleteNetwork(actions.DeleteAction):
+    depends_on = {'net'}
+
+    def act(self, items):
+        assert len(items) == 1
+        LOG.info('Delete network is called! %s', items)

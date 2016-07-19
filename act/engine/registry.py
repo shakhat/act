@@ -11,17 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
+from act.actions import network
+from act.actions import noop
 
-from oslo_log import log as logging
-
-
-LOG = logging.getLogger(__name__)
-
-OPERATION_ACT = 'act'
-OPERATION_RESPONSE = 'response'
+REGISTRY = [network.CreateNetwork(), network.DeleteNetwork(), noop.DoNothing()]
 
 
-Task = collections.namedtuple('Task', ['action', 'items'])
-NoOpTask = Task(action=None, items=None)
-StopTask = None
+def get_actions():
+    return REGISTRY

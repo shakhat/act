@@ -11,17 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
-
 from oslo_log import log as logging
+
+from act.engine import actions
 
 
 LOG = logging.getLogger(__name__)
 
-OPERATION_ACT = 'act'
-OPERATION_RESPONSE = 'response'
 
+class DoNothing(actions.IdempotantAction):
 
-Task = collections.namedtuple('Task', ['action', 'items'])
-NoOpTask = Task(action=None, items=None)
-StopTask = None
+    def act(self, items):
+        LOG.info('Do Nothing is called! %s', items)

@@ -21,6 +21,7 @@ import rq
 from act.engine import consts
 from act.engine import item as item_pkg
 from act.engine import main
+from act.engine import registry
 from act.engine import utils
 from act.engine import world as world_pkg
 
@@ -91,8 +92,8 @@ def work(task):
 def process():
     # initialize the world
     default_items = []
-    for action_klazz in main.REGISTRY:
-        meta_type = action_klazz.get_meta_type()
+    for action in registry.get_actions():
+        meta_type = action.get_meta_type()
         if meta_type:
             item = item_pkg.Item(meta_type, None)
             default_items.append(item)
@@ -112,7 +113,7 @@ def process():
     LOG.info('Seeding initial items: %s', seed)
 
     for x in range(seed):
-        next_task = produce_task(world, main.REGISTRY)
+        next_task = produce_task(world, registry.get_actions())
         async_results.append(task_q.enqueue(work, next_task))
 
     LOG.info('Starting the work, steps: %s', steps)
@@ -136,7 +137,7 @@ def process():
                 handle_operation(operation, world)
                 counter += 1
                 if counter < steps:
-                    next_task = produce_task(world, main.REGISTRY)
+                    next_task = produce_task(world, registry.get_actions())
                     nx.append(task_q.enqueue(work, next_task))
                     proceed = True
 

@@ -4,6 +4,7 @@
 
 pbr>=1.6 # Apache-2.0
 
+click
 iso8601>=0.1.11 # MIT
 oslo.concurrency>=3.8.0 # Apache-2.0
 oslo.config>=3.12.0 # Apache-2.0

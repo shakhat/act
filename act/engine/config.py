@@ -101,6 +101,11 @@ SCENARIO_OPTS = [
                    type_filter=lambda x: x.endswith('.yaml'))),
 ]
 
+MONITOR_OPTS = COMMON_OPTS + [
+    cfg.IntOpt('interval', default=utils.env('ACT_INTERVAL') or 1.0,
+               help='Update interval in seconds.'),
+]
+
 ENGINE_OPTS = COMMON_OPTS + OPENSTACK_OPTS + SCENARIO_OPTS
 WORKER_OPTS = COMMON_OPTS
 

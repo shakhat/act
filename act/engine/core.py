@@ -20,6 +20,7 @@ import rq
 
 from act.engine import consts
 from act.engine import item as item_pkg
+from act.engine import metrics
 from act.engine import registry
 from act.engine import utils
 from act.engine import world as world_pkg
@@ -95,6 +96,7 @@ def do_action(task):
 def process():
     # the entry-point to engine
     registry.init()
+    metrics.clear()
 
     # initialize the world
     default_items = []
@@ -130,6 +132,8 @@ def process():
 
     while proceed:
         LOG.info('Work queue: %s', len(async_results))
+        metrics.set_metric('backlog', len(async_results))
+
         proceed = len(async_results) == 0
 
         nx = []
@@ -142,6 +146,8 @@ def process():
             else:
                 handle_operation(operation, world)
                 counter += 1
+                metrics.set_metric('operation', counter)
+
                 if counter < steps:
                     next_task = produce_task(world, registry.get_actions())
                     nx.append(task_q.enqueue(do_action, next_task))
@@ -152,6 +158,8 @@ def process():
         if len(failed_q) > failures:
             failures = len(failed_q)
             LOG.info('Failures: %s', failures)
+
+        metrics.set_metric('failures', failures, mood=metrics.MOOD_SAD)
 
         time.sleep(0.5)
 

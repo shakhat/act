@@ -42,7 +42,7 @@ class Item(object):
         self.refs.add(other_id)
 
     def del_ref(self, other_id):
-        self.refs.pop(other_id)
+        self.refs.remove(other_id)
 
     def has_dependants(self):
         return len(self.refs) > 0

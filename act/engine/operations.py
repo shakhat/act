@@ -17,9 +17,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Operation(object):
-    def __init__(self, item, dependencies):
+    def __init__(self, item, dependencies, task_id):
         self.item = item
         self.dependencies = dependencies
+        self.task_id = task_id
 
     def do(self, world):
         LOG.info('Do nothing')

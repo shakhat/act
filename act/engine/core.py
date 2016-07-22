@@ -29,8 +29,8 @@ from act.engine import world as world_pkg
 LOG = logging.getLogger(__name__)
 
 
-Task = collections.namedtuple('Task', ['action', 'items'])
-NoOpTask = Task(action=None, items=None)
+Task = collections.namedtuple('Task', ['id', 'action', 'items'])
+NoOpTask = Task(id=0, action=None, items=None)
 
 
 def produce_task(world, actions):
@@ -44,8 +44,8 @@ def produce_task(world, actions):
         if not filtered_items:
             continue
 
-        LOG.info('Action: %s, item-types: %s, filtered_items: %s', action,
-                 item_types, filtered_items)
+        LOG.debug('Available action: %s, item-types: %s, filtered_items: %s',
+                  action, item_types, filtered_items)
 
         # check that filtered_items contain items of *all* item_types
         filtered_item_types = set(i.item_type for i in filtered_items)
@@ -65,14 +65,17 @@ def produce_task(world, actions):
 
         chosen_items = [random.choice(v) for v in items_per_type.values()]
 
-        task = Task(action=chosen_action, items=chosen_items)
+        for item in chosen_items:
+            item.lock()
+
+        task = Task(id=utils.make_id(), action=chosen_action,
+                    items=chosen_items)
+        LOG.info('Produced task: %s', task)
+
+        return task
     else:
-        # nothing to do
-        task = NoOpTask
-
-    LOG.info('Produced task: %s', task)
-
-    return task
+        LOG.debug('No actions available')
+        return None
 
 
 def handle_operation(op, world):
@@ -88,7 +91,8 @@ def do_action(task):
     action = task.action
     action_result = action.act(task.items)
     operation_class = action.get_operation_class()
-    operation = operation_class(item=action_result, dependencies=task.items)
+    operation = operation_class(item=action_result, dependencies=task.items,
+                                task_id=task.id)
 
     LOG.info('Operation %s', operation)
     return operation
@@ -157,6 +161,8 @@ def process(scenario, interval):
             if addition > 0:  # need to add more tasks
                 for i in range(addition):
                     next_task = produce_task(world, registry.get_actions())
+                    if not next_task:
+                        break  # no more actions possible
                     pending.append(task_queue.enqueue(do_action, next_task))
 
             task_results = pending

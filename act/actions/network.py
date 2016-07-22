@@ -40,3 +40,80 @@ class DeleteNetwork(actions.DeleteAction):
     def act(self, items):
         assert len(items) == 1
         LOG.info('Delete network is called! %s', items)
+
+
+class CreateSubnet(actions.CreateAction):
+    meta_type = 'meta_subnet'
+    depends_on = {'net', 'meta_subnet'}
+
+    def act(self, items):
+        LOG.info('Create Subnet is called! %s', items)
+        subnet = dict(name='foo', id='1234')
+        time.sleep(random.random())
+        return item.Item('subnet', subnet, ref_count_limit=10)
+
+
+class DeleteSubnet(actions.DeleteAction):
+    depends_on = {'subnet'}
+
+    def act(self, items):
+        assert len(items) == 1
+        LOG.info('Delete subnet is called! %s', items)
+
+
+class CreateRouter(actions.CreateAction):
+    meta_type = 'meta_router'
+    depends_on = {'meta_router'}
+
+    def act(self, items):
+        LOG.info('Create Router is called! %s', items)
+        router = dict(name='foo', id='1234')
+        time.sleep(random.random())
+        return item.Item('router', router, ref_count_limit=10)
+
+
+class DeleteRouter(actions.DeleteAction):
+    depends_on = {'router'}
+
+    def act(self, items):
+        assert len(items) == 1
+        LOG.info('Delete router is called! %s', items)
+
+
+class CreateRouterInterface(actions.CreateAction):
+    meta_type = 'meta_router_interface'
+    depends_on = {'meta_router_interface', 'subnet', 'router'}
+
+    def act(self, items):
+        LOG.info('Create RouterInterface is called! %s', items)
+        router_interface = dict(name='foo', id='1234')
+        time.sleep(random.random())
+        return item.Item('router_interface', router_interface,
+                         ref_count_limit=10)
+
+
+class DeleteRouterInterface(actions.DeleteAction):
+    depends_on = {'router_interface'}
+
+    def act(self, items):
+        assert len(items) == 1
+        LOG.info('Delete router interface is called! %s', items)
+
+
+class CreatePort(actions.CreateAction):
+    meta_type = 'meta_port'
+    depends_on = {'meta_port', 'net', 'subnet'}
+
+    def act(self, items):
+        LOG.info('Create Port is called! %s', items)
+        port = dict(name='foo', id='1234')
+        time.sleep(random.random())
+        return item.Item('port', port, ref_count_limit=10)
+
+
+class DeletePort(actions.DeleteAction):
+    depends_on = {'port'}
+
+    def act(self, items):
+        assert len(items) == 1
+        LOG.info('Delete port is called! %s', items)

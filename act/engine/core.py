@@ -13,6 +13,7 @@
 
 import collections
 import random
+import re
 import time
 
 from oslo_log import log as logging
@@ -98,6 +99,16 @@ def do_action(task):
     return operation
 
 
+def apply_action_filter(action_filter):
+    if not action_filter:
+        for a in registry.get_actions():
+            yield a
+    else:
+        for action in registry.get_actions():
+            if re.match(action_filter, str(action)):
+                yield action
+
+
 def process(scenario, interval):
     # the entry-point to engine
     registry.init()
@@ -160,7 +171,8 @@ def process(scenario, interval):
             addition = concurrency - len(pending)
             if addition > 0:  # need to add more tasks
                 for i in range(addition):
-                    next_task = produce_task(world, registry.get_actions())
+                    actions = apply_action_filter(stage.get('filter'))
+                    next_task = produce_task(world, actions)
                     if not next_task:
                         break  # no more actions possible
                     pending.append(task_queue.enqueue(do_action, next_task))
@@ -173,7 +185,7 @@ def process(scenario, interval):
 
             metrics.set_metric('backlog', len(task_results))
 
-            if concurrency == 0 and len(task_results) == 0:
+            if len(task_results) == 0:  # no existing tasks and no to add
                 break  # tear down finished
 
             time.sleep(interval)

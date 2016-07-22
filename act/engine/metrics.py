@@ -36,7 +36,7 @@ def clear():
 
 def set_metric(metric, value, mood=MOOD_HAPPY):
     m = Metric(value=value, timestamp=time.time(), mood=mood)
-    LOG.debug('Set metric %s=%s', metric, m)
+    LOG.debug('Set metric %s = %s', metric, m)
     redis_connection = rq.connections.get_current_connection()
     redis_connection.hset(KEY_METRICS, metric, json.dumps(m))
 

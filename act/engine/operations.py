@@ -25,6 +25,9 @@ class Operation(object):
     def do(self, world):
         LOG.info('Do nothing')
 
+    def __repr__(self):
+        return '%s(%s)' % (type(self).__name__, self.task_id)
+
 
 class CreateOperation(Operation):
     def do(self, world):

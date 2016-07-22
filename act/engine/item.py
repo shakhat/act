@@ -30,7 +30,8 @@ class Item(object):
 
     def __repr__(self):
         return str(dict(id=self.id, item_type=self.item_type,
-                        payload=self.payload, ref_count=len(self.refs)))
+                        payload=self.payload, ref_count=len(self.refs),
+                        lock_count=self.lock_count))
 
     def lock(self):
         self.lock_count += 1

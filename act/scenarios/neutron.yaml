@@ -8,3 +8,7 @@ play:
       net: 5
   - duration: 5
     concurrency: 10
+  - title: cleanup
+    filter: Delete.*
+    duration: 100
+    concurrency: 20

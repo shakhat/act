@@ -16,6 +16,7 @@ import random
 import time
 
 from oslo_log import log as logging
+from oslo_utils import timeutils
 import rq
 
 from act.engine import consts
@@ -93,7 +94,7 @@ def do_action(task):
     return operation
 
 
-def process():
+def process(scenario, interval):
     # the entry-point to engine
     registry.init()
     metrics.clear()
@@ -110,57 +111,59 @@ def process():
     for item in default_items:
         world.put(item)
 
-    # initial execution tasks
-    steps = 10
-    seed = 2
-    async_results = []
-    task_q = rq.Queue(consts.TASK_QUEUE_NAME)
-    failed_q = rq.Queue(consts.FAILURE_QUEUE_NAME)
-    failed_q.empty()
+    # play!
+    play = scenario['play']
 
-    LOG.info('Seeding initial items: %s', seed)
+    # add tear down
+    play.append(dict(concurrency=0, duration=1000))
 
-    for x in range(seed):
-        next_task = produce_task(world, registry.get_actions())
-        async_results.append(task_q.enqueue(do_action, next_task))
+    task_results = []
+    task_queue = rq.Queue(consts.TASK_QUEUE_NAME)
+    failed_queue = rq.Queue(consts.FAILURE_QUEUE_NAME)
+    failed_queue.empty()
+    metrics.set_metric('failures', 0, mood=metrics.MOOD_HAPPY)
 
-    LOG.info('Starting the work, steps: %s', steps)
-
-    proceed = True
-    counter = 0
     failures = 0
+    counter = 0
 
-    while proceed:
-        LOG.info('Work queue: %s', len(async_results))
-        metrics.set_metric('backlog', len(async_results))
+    for stage in play:
+        duration = stage['duration']
+        concurrency = stage['concurrency']
 
-        proceed = len(async_results) == 0
+        watch = timeutils.StopWatch(duration=duration)
+        watch.start()
 
-        nx = []
-        for x in range(len(async_results)):
-            operation = async_results[x].return_value
+        while not watch.expired():
 
-            if operation is None:
-                proceed = True
-                nx.append(async_results[x])
-            else:
-                handle_operation(operation, world)
-                counter += 1
-                metrics.set_metric('operation', counter)
+            pending = []
+            for task_result in task_results:
+                operation = task_result.return_value
 
-                if counter < steps:
+                if operation is None:
+                    pending.append(task_result)
+                else:
+                    handle_operation(operation, world)
+
+                    counter += 1
+                    metrics.set_metric('operation', counter)
+
+            addition = concurrency - len(pending)
+            if addition > 0:  # need to add more tasks
+                for i in range(addition):
                     next_task = produce_task(world, registry.get_actions())
-                    nx.append(task_q.enqueue(do_action, next_task))
-                    proceed = True
+                    pending.append(task_queue.enqueue(do_action, next_task))
 
-        async_results = nx
+            task_results = pending
 
-        if len(failed_q) > failures:
-            failures = len(failed_q)
-            LOG.info('Failures: %s', failures)
+            if len(failed_queue) > failures:
+                failures = len(failed_queue)
+                metrics.set_metric('failures', failures, mood=metrics.MOOD_SAD)
 
-        metrics.set_metric('failures', failures, mood=metrics.MOOD_SAD)
+            metrics.set_metric('backlog', len(task_results))
 
-        time.sleep(0.5)
+            if concurrency == 0 and len(task_results) == 0:
+                break  # tear down finished
+
+            time.sleep(interval)
 
     LOG.info('World: %s', world)

@@ -27,9 +27,14 @@ def run():
 
     redis_connection = utils.make_redis_connection(host=cfg.CONF.redis_host,
                                                    port=cfg.CONF.redis_port)
+
+    scenario = utils.read_yaml_file(
+        cfg.CONF.scenario,
+        alias_mapper=(lambda f: config.SCENARIOS + '%s.yaml' % f))
+
     with rq.Connection(redis_connection):
         LOG.info('Connected to Redis')
-        core.process()
+        core.process(scenario, cfg.CONF.interval)
 
 
 if __name__ == '__main__':

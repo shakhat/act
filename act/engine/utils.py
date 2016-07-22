@@ -123,8 +123,8 @@ def write_file(data, file_name, base_dir=''):
             fd.close()
 
 
-def read_yaml_file(file_name):
-    raw = read_file(file_name)
+def read_yaml_file(file_name, base_dir='', alias_mapper=None):
+    raw = read_file(file_name, base_dir=base_dir, alias_mapper=alias_mapper)
     try:
         parsed = yaml.safe_load(raw)
         return parsed

@@ -37,7 +37,7 @@ class Yaml(types.String):
         return "YAML data"
 
 
-COMMON_OPTS = [
+REDIS_OPTS = [
     cfg.StrOpt('redis-host', default=utils.env('ACT_REDIS_HOST'),
                help='Redis server host name'),
     cfg.IntOpt('redis-port', default=utils.env('ACT_REDIS_PORT'),
@@ -94,22 +94,24 @@ OPENSTACK_OPTS = [
 
 SCENARIO_OPTS = [
     cfg.StrOpt('scenario',
-               default=utils.env('ACT_SCENARIO') or 'boom',
+               default=utils.env('ACT_SCENARIO') or 'neutron',
                help=utils.make_help_options(
                    'Scenario to play. Can be a file name or one of aliases: '
                    '%s. Defaults to env[ACT_SCENARIO].', SCENARIOS,
                    type_filter=lambda x: x.endswith('.yaml'))),
 ]
 
-MONITOR_OPTS = COMMON_OPTS + [
-    cfg.IntOpt('interval', default=utils.env('ACT_INTERVAL') or 1.0,
-               help='Update interval in seconds.'),
+INTERVAL_OPTS = [
+    cfg.FloatOpt('interval', default=utils.env('ACT_INTERVAL') or 0.5,
+                 help='Polling interval in seconds. Defaults to '
+                      'env[ACT_INTERVAL] or 0.5'),
 ]
 
-ENGINE_OPTS = COMMON_OPTS + OPENSTACK_OPTS + SCENARIO_OPTS
-WORKER_OPTS = COMMON_OPTS
+ENGINE_OPTS = REDIS_OPTS + INTERVAL_OPTS + OPENSTACK_OPTS + SCENARIO_OPTS
+WORKER_OPTS = REDIS_OPTS
+MONITOR_OPTS = REDIS_OPTS + INTERVAL_OPTS
 
 
 def list_opts():
-    all_opts = (COMMON_OPTS + OPENSTACK_OPTS + SCENARIO_OPTS)
+    all_opts = (REDIS_OPTS + OPENSTACK_OPTS + SCENARIO_OPTS + INTERVAL_OPTS)
     yield (None, copy.deepcopy(all_opts))

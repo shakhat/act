@@ -1,7 +1,8 @@
 title: Let's make different Neutron resources
 
 play:
-  - duration: 10
+  - title: warming up
+    duration: 10
     concurrency: 4
     limits:
       net: 5

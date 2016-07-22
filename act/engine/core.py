@@ -114,8 +114,10 @@ def process(scenario, interval):
     # play!
     play = scenario['play']
 
+    LOG.info('Playing scenario "%s"', scenario['title'])
+
     # add tear down
-    play.append(dict(concurrency=0, duration=1000))
+    play.append(dict(concurrency=0, duration=1000, title='tear down'))
 
     task_results = []
     task_queue = rq.Queue(consts.TASK_QUEUE_NAME)
@@ -126,9 +128,13 @@ def process(scenario, interval):
     failures = 0
     counter = 0
 
-    for stage in play:
+    for idx, stage in enumerate(play):
+        title = stage.get('title') or ('stage #%s' % idx)
         duration = stage['duration']
         concurrency = stage['concurrency']
+
+        LOG.info('Playing stage "%s" duration: %s, concurrency: %s',
+                 title, duration, concurrency)
 
         watch = timeutils.StopWatch(duration=duration)
         watch.start()

@@ -109,3 +109,28 @@ class TestUtils(testtools.TestCase):
     def test_strict(self):
         self.assertEqual('some_01_string_a',
                          utils.strict('Some 01-string (brr!) + %% A'))
+
+    @mock.patch('random.random')
+    def test_weighted_random_choice(self, mock_random):
+        class _ItemWithWeight(object):
+            def __init__(self, value, weight):
+                self.value = value
+                self.weight = weight
+
+        items = [
+            _ItemWithWeight('abc', 0.1),
+            _ItemWithWeight('def', 0.3),
+            _ItemWithWeight('klm', 0.6),
+        ]
+
+        mock_random.return_value = 0.05
+        observed = utils.weighted_random_choice(items)
+        self.assertEqual('abc', observed.value)
+
+        mock_random.return_value = 0.25
+        observed = utils.weighted_random_choice(items)
+        self.assertEqual('def', observed.value)
+
+        mock_random.return_value = 0.5
+        observed = utils.weighted_random_choice(items)
+        self.assertEqual('klm', observed.value)

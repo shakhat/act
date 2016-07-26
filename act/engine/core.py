@@ -36,7 +36,7 @@ NoOpTask = Task(id=0, action=None, items=None)
 
 def produce_task(world, actions):
 
-    available_actions = {}
+    available_action_items = {}  # action -> (items)
     for action in actions:
         item_types = action.get_depends_on()
         world_items = world.filter_items(item_types)
@@ -53,11 +53,12 @@ def produce_task(world, actions):
         if item_types and filtered_item_types != item_types:
             continue
 
-        available_actions[action] = filtered_items
+        available_action_items[action] = filtered_items
 
-    if available_actions:
-        chosen_action = utils.weighted_random_choice(available_actions.keys())
-        available_items = available_actions[chosen_action]
+    if available_action_items:
+        available_actions = list(available_action_items.keys())
+        chosen_action = utils.weighted_random_choice(available_actions)
+        available_items = available_action_items[chosen_action]
 
         # pick one random item per type
         items_per_type = collections.defaultdict(list)

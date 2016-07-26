@@ -16,6 +16,7 @@ import redis
 import rq
 import testtools
 
+from act.actions import network as a
 from act.engine import core
 from act.engine import world as world_pkg
 
@@ -49,8 +50,36 @@ class StopWatchMock(mock.MagicMock):
 
 
 class WorldMock(world_pkg.World):
+    def reset(self):
+        self.storage.clear()
+
     def get_items(self, *item_types):
         return [x for x in self.storage.values() if x.item_type in item_types]
+
+    def get_one_item(self, item_type):
+        return self.get_items(item_type)[0]
+
+
+class RandomChoiceMock(object):
+    def __init__(self):
+        self.timeline = None
+        self.counter = -1
+
+    def setup(self, timeline):
+        self.timeline = timeline
+        self.counter = 0
+
+    def weighted_random_choice(self, objs):
+        assert self.timeline is not None
+        obj_types = set(type(o) for o in objs)
+        assert obj_types == set(self.timeline[self.counter]['options'])
+
+        choice_type = self.timeline[self.counter]['choice']
+        self.counter += 1
+
+        for obj in objs:
+            if type(obj) == choice_type:
+                return obj
 
 
 class TestEngine(testtools.TestCase):
@@ -77,6 +106,12 @@ class TestEngine(testtools.TestCase):
         rq.push_connection(StrictRedisMock())
         self.addCleanup(rq.pop_connection)
 
+        choice_patcher = mock.patch('act.engine.utils.weighted_random_choice')
+        self.choice = RandomChoiceMock()
+        mock_choice = choice_patcher.start()
+        mock_choice.side_effect = self.choice.weighted_random_choice
+        self.addCleanup(choice_patcher.stop)
+
         return super(TestEngine, self).setUp()
 
     def test_one_create_action(self):
@@ -92,10 +127,59 @@ class TestEngine(testtools.TestCase):
             'title': __name__
         }
 
+        timeline = [
+            {  # step 0
+                'options': [a.CreateNetwork],
+                'choice': a.CreateNetwork,
+            },
+            {  # step 1
+                'options': [a.CreateNetwork],
+                'choice': a.CreateNetwork,
+            },
+        ]
+        self.choice.setup(timeline)
+        self.world.reset()
+
         core.process(scenario, 0)
 
         nets = self.world.get_items('net')
         self.assertEqual(2, len(nets))
 
-        meta_net = self.world.get_items('meta_net')[0]
+        meta_net = self.world.get_one_item('meta_net')
         self.assertEqual(2, len(meta_net.refs))
+
+    def test_dependent_create_actions(self):
+        # this scenario should create 1 network and 1 subnet
+        scenario = {
+            'play': [
+                {
+                    'duration': 2,
+                    'concurrency': 1,
+                    'filter': 'CreateNetwork|CreateSubnet',
+                }
+            ],
+            'title': __name__
+        }
+
+        timeline = [
+            {  # step 0
+                'options': [a.CreateNetwork],
+                'choice': a.CreateNetwork,
+            },
+            {  # step 1
+                'options': [a.CreateNetwork, a.CreateSubnet],
+                'choice': a.CreateSubnet,
+            },
+        ]
+        self.choice.setup(timeline)
+        self.world.reset()
+
+        core.process(scenario, 0)
+
+        self.assertEqual(1, len(self.world.get_items('net')))
+        self.assertEqual(1, len(self.world.get_items('subnet')))
+        self.assertEqual(1, len(self.world.get_one_item('meta_net').refs))
+        self.assertEqual(1, len(self.world.get_one_item('meta_subnet').refs))
+
+        net = self.world.get_one_item('net')
+        self.assertEqual(1, len(net.refs))

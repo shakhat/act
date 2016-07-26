@@ -42,7 +42,10 @@ def import_modules_from_package(package):
             if module_name not in sys.modules:
                 module = importutils.import_module(module_name)
                 sys.modules[module_name] = module
-                yield module
+            else:
+                module = sys.modules[module_name]
+
+            yield module
 
 
 def init():
@@ -55,7 +58,7 @@ def init():
         class_info_list = inspect.getmembers(module, inspect.isclass)
         klazz_list += [ci[1] for ci in class_info_list]
 
-    REGISTRY += [k() for k in klazz_list]
+    REGISTRY = [k() for k in klazz_list]
 
     LOG.info('Registry: %s', REGISTRY)
 

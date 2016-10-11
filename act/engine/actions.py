@@ -39,11 +39,11 @@ class Action(object):
     def filter_items(self, items):
         pass
 
-    def act(self, items):
-        pass
+    def do_action(self, items, task_id):
+        return operations.Operation(task_id)
 
-    def get_operation_class(self):
-        return operations.Operation
+    def act(self, items):
+        raise NotImplementedError()
 
     def __repr__(self):
         return type(self).__name__
@@ -60,8 +60,10 @@ class CreateAction(Action):
             if item.can_be_used():
                 yield item
 
-    def get_operation_class(self):
-        return operations.CreateOperation
+    def do_action(self, items, task_id):
+        action_result = self.act(items)
+        return operations.CreateOperation(
+            item=action_result, dependencies=items, task_id=task_id)
 
 
 class DeleteAction(Action):
@@ -72,8 +74,9 @@ class DeleteAction(Action):
             if not item.has_dependants() and not item.is_locked():
                 yield item
 
-    def get_operation_class(self):
-        return operations.DeleteOperation
+    def do_action(self, items, task_id):
+        action_result = self.act(items)
+        return operations.DeleteOperation(item=action_result, task_id=task_id)
 
 
 class IdempotantAction(Action):

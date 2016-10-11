@@ -91,10 +91,7 @@ def do_action(task):
     LOG.info('Executing action %s', task)
 
     action = task.action
-    action_result = action.act(task.items)
-    operation_class = action.get_operation_class()
-    operation = operation_class(item=action_result, dependencies=task.items,
-                                task_id=task.id)
+    operation = action.do_action(items=task.items, task_id=task.id)
 
     LOG.info('Operation %s', operation)
     return operation

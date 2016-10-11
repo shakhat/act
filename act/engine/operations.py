@@ -17,9 +17,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Operation(object):
-    def __init__(self, item, dependencies, task_id):
-        self.item = item
-        self.dependencies = dependencies
+    def __init__(self, task_id):
         self.task_id = task_id
 
     def do(self, world):
@@ -30,12 +28,21 @@ class Operation(object):
 
 
 class CreateOperation(Operation):
+    def __init__(self, item, dependencies, task_id):
+        super(CreateOperation, self).__init__(task_id)
+        self.item = item
+        self.dependencies = dependencies
+
     def do(self, world):
         LOG.info('Created item: %s', self.item)
         world.put(self.item, self.dependencies)
 
 
 class DeleteOperation(Operation):
+    def __init__(self, item, task_id):
+        super(DeleteOperation, self).__init__(task_id)
+        self.item = item
+
     def do(self, world):
-        LOG.info('Deleted item: %s', self.dependencies[0])
-        world.pop(self.dependencies[0])
+        LOG.info('Deleted item: %s', self.item)
+        world.pop(self.item)

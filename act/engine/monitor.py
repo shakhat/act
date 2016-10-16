@@ -58,7 +58,7 @@ def show():
         count = metric.value
         color = green if metric.mood == metrics.MOOD_HAPPY else red
         chart = color('|' + '█' * int(ratio * count))
-        line = '%-12s %s %d' % (key, chart, count)
+        line = '%-25s %s %d' % (key, chart, count)
         click.echo(line)
 
     time.sleep(cfg.CONF.interval)

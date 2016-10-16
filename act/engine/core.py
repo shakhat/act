@@ -139,6 +139,7 @@ def process(scenario, interval):
 
     failures = 0
     counter = 0
+    actions_counter = collections.defaultdict(int)
 
     for idx, stage in enumerate(play):
         title = stage.get('title') or ('stage #%s' % idx)
@@ -173,6 +174,7 @@ def process(scenario, interval):
                     if not next_task:
                         break  # no more actions possible
                     pending.append(task_queue.enqueue(do_action, next_task))
+                    actions_counter[str(next_task.action)] += 1
 
             task_results = pending
 
@@ -181,6 +183,12 @@ def process(scenario, interval):
                 metrics.set_metric('failures', failures, mood=metrics.MOOD_SAD)
 
             metrics.set_metric('backlog', len(task_results))
+
+            for action, counter in actions_counter.items():
+                metrics.set_metric(action, counter)
+
+            for item_type, counter in world.get_counters().items():
+                metrics.set_metric(item_type, counter)
 
             if len(task_results) == 0:  # no existing tasks and no to add
                 break  # tear down finished

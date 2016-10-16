@@ -25,7 +25,12 @@ KEY_METRICS = 'act_metrics'
 MOOD_HAPPY = 'happy'
 MOOD_SAD = 'sad'
 
-Metric = collections.namedtuple('Metric', ['value', 'timestamp', 'mood'])
+METRIC_TYPE_SUMMARY = 'summary'
+METRIC_TYPE_ACTIONS = 'actions'
+METRIC_TYPE_OBJECTS = 'objects'
+
+Metric = collections.namedtuple(
+    'Metric', ['metric_type', 'value', 'timestamp', 'mood'])
 
 
 def clear():
@@ -34,8 +39,9 @@ def clear():
     redis_connection.delete(KEY_METRICS)
 
 
-def set_metric(metric, value, mood=MOOD_HAPPY):
-    m = Metric(value=value, timestamp=time.time(), mood=mood)
+def set_metric(metric_type, metric, value, mood=MOOD_HAPPY):
+    m = Metric(metric_type=metric_type, value=value, timestamp=time.time(),
+               mood=mood)
     LOG.debug('Set metric %s = %s', metric, m)
     redis_connection = rq.connections.get_current_connection()
     redis_connection.hset(KEY_METRICS, metric, json.dumps(m))
@@ -49,6 +55,7 @@ def get_all_metrics():
     result = {}
     for key, one_metric in all_metrics.items():
         m = json.loads(one_metric)
-        result[key] = Metric(value=m[0], timestamp=m[1], mood=m[2])
+        result[key] = Metric(metric_type=m[0], value=m[1], timestamp=m[2],
+                             mood=m[3])
 
     return result

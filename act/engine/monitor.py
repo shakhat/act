@@ -19,6 +19,7 @@ import click
 from oslo_config import cfg
 from oslo_log import log as logging
 import rq
+from tabulate import tabulate
 
 from act.engine import config
 from act.engine import metrics
@@ -52,13 +53,19 @@ def show():
     scale = get_scale(max_count)
     ratio = chart_width * 1.0 / scale
 
+    t = []
+    headers = ['param', 'value', 'chart']
     keys = sorted(m.keys())
     for key in keys:
         metric = m[key]
         count = metric.value
         color = green if metric.mood == metrics.MOOD_HAPPY else red
-        chart = color('|' + '█' * int(ratio * count))
-        line = '%-25s %s %d' % (key, chart, count)
+        chart = color('|' + u'█' * int(ratio * count))
+
+        t.append([key, count, chart])
+
+    s = tabulate(t, headers=headers, tablefmt='simple')
+    for line in s.split('\n'):
         click.echo(line)
 
     time.sleep(cfg.CONF.interval)

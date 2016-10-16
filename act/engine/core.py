@@ -135,7 +135,8 @@ def process(scenario, interval):
     task_queue = rq.Queue(consts.TASK_QUEUE_NAME)
     failed_queue = rq.Queue(consts.FAILURE_QUEUE_NAME)
     failed_queue.empty()
-    metrics.set_metric('failures', 0, mood=metrics.MOOD_HAPPY)
+    metrics.set_metric(metrics.METRIC_TYPE_SUMMARY, 'failures', 0,
+                       mood=metrics.MOOD_HAPPY)
 
     failures = 0
     counter = 0
@@ -164,7 +165,8 @@ def process(scenario, interval):
                     handle_operation(operation, world)
 
                     counter += 1
-                    metrics.set_metric('operation', counter)
+                    metrics.set_metric(metrics.METRIC_TYPE_SUMMARY,
+                                       'operation', counter)
 
             addition = concurrency - len(pending)
             if addition > 0:  # need to add more tasks
@@ -180,15 +182,19 @@ def process(scenario, interval):
 
             if len(failed_queue) > failures:
                 failures = len(failed_queue)
-                metrics.set_metric('failures', failures, mood=metrics.MOOD_SAD)
+                metrics.set_metric(metrics.METRIC_TYPE_SUMMARY, 'failures',
+                                   failures, mood=metrics.MOOD_SAD)
 
-            metrics.set_metric('backlog', len(task_results))
+            metrics.set_metric(metrics.METRIC_TYPE_SUMMARY, 'backlog',
+                               len(task_results))
 
             for action, counter in actions_counter.items():
-                metrics.set_metric(action, counter)
+                metrics.set_metric(metrics.METRIC_TYPE_ACTIONS, action,
+                                   counter)
 
             for item_type, counter in world.get_counters().items():
-                metrics.set_metric(item_type, counter)
+                metrics.set_metric(metrics.METRIC_TYPE_OBJECTS, item_type,
+                                   counter)
 
             if len(task_results) == 0:  # no existing tasks and no to add
                 break  # tear down finished

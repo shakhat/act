@@ -39,6 +39,12 @@ class Action(object):
     def filter_items(self, items):
         pass
 
+    def reserve_items(self, items):
+        pass
+
+    def release_items(self, items):
+        pass
+
     def do_action(self, items, task_id):
         return operations.Operation(task_id)
 
@@ -49,16 +55,27 @@ class Action(object):
         return type(self).__name__
 
 
-class CreateAction(Action):
+class ReadLockAction(Action):
+
+    def filter_items(self, items):
+        for item in items:
+            if item.can_be_taken():
+                yield item
+
+    def reserve_items(self, items):
+        for item in items:
+            item.take()
+
+    def release_items(self, items):
+        for item in items:
+            item.free()
+
+
+class CreateAction(ReadLockAction):
     weight = 0.9
 
     def __init__(self):
         super(CreateAction, self).__init__()
-
-    def filter_items(self, items):
-        for item in items:
-            if item.can_be_used():
-                yield item
 
     def do_action(self, items, task_id):
         action_result = self.act(items)
@@ -66,27 +83,34 @@ class CreateAction(Action):
             item=action_result, dependencies=items, task_id=task_id)
 
 
-class DeleteAction(Action):
+class WriteLockAction(Action):
+
+    def filter_items(self, items):
+        for item in items:
+            if item.can_be_locked():
+                yield item
+
+    def reserve_items(self, items):
+        for item in items:
+            item.lock()
+
+    def release_items(self, items):
+        for item in items:
+            item.unlock()
+
+
+class DeleteAction(WriteLockAction):
     weight = 0.1
 
-    def filter_items(self, items):
-        for item in items:
-            if not item.has_dependants() and not item.is_locked():
-                yield item
-
     def do_action(self, items, task_id):
-        action_result = self.act(items)
-        return operations.DeleteOperation(item=action_result, task_id=task_id)
+        assert len(items) == 1
+        self.act(items)
+        return operations.DeleteOperation(item=items[0], task_id=task_id)
 
 
-class IdempotantAction(Action):
-    def filter_items(self, items):
-        for item in items:
-            yield item
+class IdempotantAction(ReadLockAction):
+    pass
 
 
-class IdempotantBlockingAction(Action):
-    def filter_items(self, items):
-        for item in items:
-            if not item.is_locked():
-                yield item
+class IdempotantBlockingAction(WriteLockAction):
+    pass

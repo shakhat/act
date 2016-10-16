@@ -21,20 +21,18 @@ class World(object):
         self.storage = {}
 
     def put(self, item, dependencies=None):
-        LOG.debug('Put item to the world: %s', item)
         self.storage[item.id] = item
 
         if dependencies:
-            for dep in dependencies:
-                # dependencies are copies of storage objects!
-                real_dep = self.storage[dep.id]
-                real_dep.add_ref(item.id)
-                real_dep.unlock()
+            item.set_dependencies([d.id for d in dependencies])
+
+        LOG.debug('Put item to the world: %s', item)
 
     def pop(self, item):
         LOG.debug('Remove item from the world: %s', item)
-        for ref_id in self.storage[item.id].refs:
-            self.storage[ref_id].del_ref(item.id)
+
+        for dependency_id in item.dependencies:
+            self.storage[dependency_id].free()
 
         del self.storage[item.id]
 

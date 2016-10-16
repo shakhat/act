@@ -82,10 +82,10 @@ class RandomChoiceMock(object):
                 return obj
 
 
+@mock.patch('time.sleep', mock.MagicMock)
 class TestEngine(testtools.TestCase):
 
     @mock.patch('redis.StrictRedis.from_url', StrictRedisMock.from_url)
-    @mock.patch('time.sleep', mock.MagicMock)
     def setUp(self):
         queue_patcher = mock.patch('rq.Queue')
         mock_queue = queue_patcher.start()
@@ -146,7 +146,7 @@ class TestEngine(testtools.TestCase):
         self.assertEqual(2, len(nets))
 
         meta_net = self.world.get_one_item('meta_net')
-        self.assertEqual(2, len(meta_net.refs))
+        self.assertEqual(2, meta_net.use_count)
 
     def test_dependent_create_actions(self):
         # this scenario should create 1 network and 1 subnet
@@ -178,8 +178,8 @@ class TestEngine(testtools.TestCase):
 
         self.assertEqual(1, len(self.world.get_items('net')))
         self.assertEqual(1, len(self.world.get_items('subnet')))
-        self.assertEqual(1, len(self.world.get_one_item('meta_net').refs))
-        self.assertEqual(1, len(self.world.get_one_item('meta_subnet').refs))
+        self.assertEqual(1, self.world.get_one_item('meta_net').use_count)
+        self.assertEqual(1, self.world.get_one_item('meta_subnet').use_count)
 
         net = self.world.get_one_item('net')
-        self.assertEqual(1, len(net.refs))
+        self.assertEqual(1, net.use_count)

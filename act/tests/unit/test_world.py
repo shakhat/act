@@ -25,10 +25,7 @@ class TestWorld(testtools.TestCase):
         globe.put(angle)
 
         rect = item.Item('rect', {})
-        angle.lock()
-
-        self.assertEqual(1, angle.lock_count)
 
         globe.put(rect, [angle])
 
-        self.assertEqual(0, angle.lock_count)
+        self.assertEqual(angle.id, rect.dependencies[0])

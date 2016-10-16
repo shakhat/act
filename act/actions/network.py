@@ -31,7 +31,7 @@ class CreateNetwork(actions.CreateAction):
         LOG.info('Create Network is called! %s', items)
         net = dict(name='foo', id='1234')
         time.sleep(random.random())
-        return item.Item('net', net, ref_count_limit=10)
+        return item.Item('net', net, use_limit=10)
 
 
 class DeleteNetwork(actions.DeleteAction):
@@ -50,7 +50,7 @@ class CreateSubnet(actions.CreateAction):
         LOG.info('Create Subnet is called! %s', items)
         subnet = dict(name='foo', id='1234')
         time.sleep(random.random())
-        return item.Item('subnet', subnet, ref_count_limit=10)
+        return item.Item('subnet', subnet, use_limit=10)
 
 
 class DeleteSubnet(actions.DeleteAction):
@@ -69,7 +69,7 @@ class CreateRouter(actions.CreateAction):
         LOG.info('Create Router is called! %s', items)
         router = dict(name='foo', id='1234')
         time.sleep(random.random())
-        return item.Item('router', router, ref_count_limit=10)
+        return item.Item('router', router, use_limit=10)
 
 
 class DeleteRouter(actions.DeleteAction):
@@ -89,7 +89,7 @@ class CreateRouterInterface(actions.CreateAction):
         router_interface = dict(name='foo', id='1234')
         time.sleep(random.random())
         return item.Item('router_interface', router_interface,
-                         ref_count_limit=10)
+                         use_limit=10)
 
 
 class DeleteRouterInterface(actions.DeleteAction):
@@ -108,7 +108,7 @@ class CreatePort(actions.CreateAction):
         LOG.info('Create Port is called! %s', items)
         port = dict(name='foo', id='1234')
         time.sleep(random.random())
-        return item.Item('port', port, ref_count_limit=10)
+        return item.Item('port', port, use_limit=10)
 
 
 class DeletePort(actions.DeleteAction):

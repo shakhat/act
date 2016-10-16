@@ -20,37 +20,43 @@ LOG = logging.getLogger(__name__)
 
 
 class Item(object):
-    def __init__(self, item_type, payload, ref_count_limit=1000):
+    def __init__(self, item_type, payload, use_limit=1000):
         self.item_type = item_type
         self.payload = payload
         self.id = utils.make_id()  # unique id
-        self.refs = set()  # items that depend on this one
-        self.ref_count_limit = ref_count_limit  # max number of dependants
-        self.lock_count = 0  # number of locks taken by operations
+        self.use_limit = use_limit  # max number of users of this item
+        self.dependencies = []
+
+        # locks
+        self.locked = False  # True if the item is locked exclusively
+        self.use_count = 0  # number of users of this item
 
     def __repr__(self):
         return str(dict(id=self.id, item_type=self.item_type,
-                        payload=self.payload, ref_count=len(self.refs),
-                        lock_count=self.lock_count))
+                        payload=self.payload, dependencies=self.dependencies,
+                        use_count=self.use_count, locked=self.locked))
+
+    def set_dependencies(self, dependencies):
+        self.dependencies = dependencies
 
     def lock(self):
-        self.lock_count += 1
+        self.locked = True
 
     def unlock(self):
-        self.lock_count -= 1
+        self.locked = False
 
-    def add_ref(self, other_id):
-        self.refs.add(other_id)
+    def can_be_locked(self):
+        # True if the item can be locked exclusively
+        return not self.locked and (self.use_count == 0)
 
-    def del_ref(self, other_id):
-        self.refs.remove(other_id)
+    def take(self):
+        # take this item as dependency for the new one
+        self.use_count += 1
 
-    def has_dependants(self):
-        return len(self.refs) > 0
+    def free(self):
+        # free this item from referencing
+        self.use_count -= 1
 
-    def is_locked(self):
-        return self.lock_count > 0
-
-    def can_be_used(self):
-        # True if it's possible to add more dependants to this item
-        return len(self.refs) + self.lock_count < self.ref_count_limit
+    def can_be_taken(self):
+        # True if the item can be used as dependency
+        return not self.locked and (self.use_count < self.use_limit)

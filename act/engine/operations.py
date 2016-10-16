@@ -34,8 +34,8 @@ class CreateOperation(Operation):
         self.dependencies = dependencies
 
     def do(self, world):
-        LOG.info('Created item: %s', self.item)
         world.put(self.item, self.dependencies)
+        LOG.info('Created item: %s', self.item)
 
 
 class DeleteOperation(Operation):
@@ -44,5 +44,5 @@ class DeleteOperation(Operation):
         self.item = item
 
     def do(self, world):
-        LOG.info('Deleted item: %s', self.item)
         world.pop(self.item)
+        LOG.info('Deleted item: %s', self.item)

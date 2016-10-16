@@ -45,8 +45,8 @@ def produce_task(world, actions):
         if not filtered_items:
             continue
 
-        LOG.debug('Available action: %s, item-types: %s, filtered_items: %s',
-                  action, item_types, filtered_items)
+        # LOG.debug('Available action: %s, item-types: %s, filtered_items: %s',
+        #           action, item_types, filtered_items)
 
         # check that filtered_items contain items of *all* item_types
         filtered_item_types = set(i.item_type for i in filtered_items)
@@ -67,8 +67,7 @@ def produce_task(world, actions):
 
         chosen_items = [random.choice(v) for v in items_per_type.values()]
 
-        for item in chosen_items:
-            item.lock()
+        chosen_action.reserve_items(chosen_items)
 
         task = Task(id=utils.make_id(), action=chosen_action,
                     items=chosen_items)

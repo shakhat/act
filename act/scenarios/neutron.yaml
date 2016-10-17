@@ -1,10 +1,15 @@
 title: Let's make different Neutron resources
 
+global:
+  limits:
+    CreateNetwork: 5
+
 play:
   - title: warming up
     duration: 10
     concurrency: 4
     limits:
+      CreatePort: 1
       net: 5
   - duration: 5
     concurrency: 10

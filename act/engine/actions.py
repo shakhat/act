@@ -23,6 +23,7 @@ class Action(object):
     weight = 0.1
     meta_type = None
     depends_on = None
+    limit = None
 
     def __init__(self):
         super(Action, self).__init__()
@@ -35,6 +36,9 @@ class Action(object):
 
     def get_depends_on(self):
         return self.depends_on
+
+    def get_limit(self):
+        return self.limit
 
     def filter_items(self, items):
         pass

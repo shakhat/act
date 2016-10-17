@@ -106,6 +106,16 @@ def apply_action_filter(action_filter):
                 yield action
 
 
+def apply_limits_filter(limits, actions, actions_counter):
+    for action in actions:
+        if str(action) in limits:
+            limit = limits[str(action)]
+            if actions_counter[str(action)] < limit:
+                yield action
+        else:
+            yield action
+
+
 def process(scenario, interval):
     # the entry-point to engine
     registry.init()
@@ -122,6 +132,15 @@ def process(scenario, interval):
     world = world_pkg.World()
     for item in default_items:
         world.put(item)
+
+    # global section
+    globals = scenario.get('global') or {}
+    global_limits = globals['limits'] if 'limits' in globals else {}
+
+    for action in registry.get_actions():
+        limit = action.get_limit()
+        if limit:
+            global_limits[str(action)] = limit
 
     # play!
     play = scenario['play']
@@ -150,6 +169,9 @@ def process(scenario, interval):
         LOG.info('Playing stage "%s" duration: %s, concurrency: %s',
                  title, duration, concurrency)
 
+        limits = stage.get('limits') or {}
+        limits.update(global_limits)
+
         watch = timeutils.StopWatch(duration=duration)
         watch.start()
 
@@ -172,6 +194,8 @@ def process(scenario, interval):
             if addition > 0:  # need to add more tasks
                 for i in range(addition):
                     actions = apply_action_filter(stage.get('filter'))
+                    actions = apply_limits_filter(limits, actions,
+                                                  actions_counter)
                     next_task = produce_task(world, actions)
                     if not next_task:
                         break  # no more actions possible

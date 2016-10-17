@@ -27,6 +27,17 @@ from act.engine import utils
 
 LOG = logging.getLogger(__name__)
 
+LOGO = """
+ _____  ____ _____
+(____ |/ ___|_   _)
+/ ___ ( (___  | |
+\_____|\____) |_|
+"""
+LOGO2 = """
+  ____   ____  _____
+  ____| |        |
+ |____| |____    |
+"""
 
 green = functools.partial(click.style, fg='green')
 red = functools.partial(click.style, fg='red')
@@ -63,6 +74,9 @@ def show():
         chart = color('|' + u'█' * int(ratio * count))
 
         t.append([key, count, chart])
+
+    for line in LOGO2.split('\n'):
+        click.echo(line)
 
     s = tabulate(t, headers=headers, tablefmt='simple')
     for line in s.split('\n'):

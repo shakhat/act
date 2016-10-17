@@ -34,9 +34,9 @@ LOGO = """
 \_____|\____) |_|
 """
 LOGO2 = """
-  ____   ____  _____
-  ____| |        |
- |____| |____    |
+ ____   ____  _____
+ ____| |        |
+|____| |____    |
 """
 
 green = functools.partial(click.style, fg='green')
@@ -52,10 +52,32 @@ def get_scale(x):
     return x
 
 
+def make_canvas(width, height):
+    return [[' ' for x in range(width)] for y in range(height)]
+
+
+def place(canvas, block, x, y):
+    lines = block.split('\n')
+    for i, line in enumerate(lines):
+        if y + i >= len(canvas):
+            break
+        for j, ch in enumerate(line):
+            if j + x >= len(canvas[y + i]):
+                break
+            canvas[y + i][j + x] = ch
+
+
+def render(canvas):
+    for line in canvas:
+        click.echo(''.join(line))
+
+
 def show():
     click.clear()
 
-    term_width, _ = click.get_terminal_size()
+    term_width, term_height = click.get_terminal_size()
+    canvas = make_canvas(term_width, term_height - 1)
+
     chart_width = min(20, term_width - 20)
 
     m = metrics.get_all_metrics()
@@ -75,12 +97,12 @@ def show():
 
         t.append([key, count, chart])
 
-    for line in LOGO2.split('\n'):
-        click.echo(line)
+    place(canvas, LOGO2, 0, 0)
 
     s = tabulate(t, headers=headers, tablefmt='simple')
-    for line in s.split('\n'):
-        click.echo(line)
+    place(canvas, s, 25, 0)
+
+    render(canvas)
 
     time.sleep(cfg.CONF.interval)
 

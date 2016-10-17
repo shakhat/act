@@ -23,19 +23,47 @@ from act.engine import item
 LOG = logging.getLogger(__name__)
 
 
+class InitNeutronTypes(actions.BatchCreateAction):
+    depends_on = {'root'}
+    limit = 1
+
+    def __init__(self):
+        super(InitNeutronTypes, self).__init__()
+
+    def act(self, items):
+        LOG.info('Initialize Neutron meta-classes')
+        return (
+            item.Item('meta_network'),
+            item.Item('meta_external_network'),
+            item.Item('meta_subnet'),
+            item.Item('meta_router'),
+            item.Item('meta_router_interface'),
+            item.Item('meta_port'),
+        )
+
+
+class DiscoverExternalNetworks(actions.BatchCreateAction):
+    depends_on = {'meta_external_network'}
+    limit = 1
+
+    def act(self, items):
+        LOG.info('Discover external network')
+        ext_net = dict(name='ext_net', id='9999')
+        return [item.Item('external_network', ext_net, read_only=True)]
+
+
 class CreateNetwork(actions.CreateAction):
-    meta_type = 'meta_net'
-    depends_on = {'meta_net'}
+    depends_on = {'meta_network'}
 
     def act(self, items):
         LOG.info('Create Network is called! %s', items)
         net = dict(name='foo', id='1234')
         time.sleep(random.random())
-        return item.Item('net', net, use_limit=10)
+        return item.Item('network', net, use_limit=10)
 
 
 class DeleteNetwork(actions.DeleteAction):
-    depends_on = {'net'}
+    depends_on = {'network'}
 
     def act(self, items):
         assert len(items) == 1
@@ -43,8 +71,7 @@ class DeleteNetwork(actions.DeleteAction):
 
 
 class CreateSubnet(actions.CreateAction):
-    meta_type = 'meta_subnet'
-    depends_on = {'net', 'meta_subnet'}
+    depends_on = {'network', 'meta_subnet'}
 
     def act(self, items):
         LOG.info('Create Subnet is called! %s', items)
@@ -62,7 +89,6 @@ class DeleteSubnet(actions.DeleteAction):
 
 
 class CreateRouter(actions.CreateAction):
-    meta_type = 'meta_router'
     depends_on = {'meta_router'}
 
     def act(self, items):
@@ -81,7 +107,6 @@ class DeleteRouter(actions.DeleteAction):
 
 
 class CreateRouterInterface(actions.CreateAction):
-    meta_type = 'meta_router_interface'
     depends_on = {'meta_router_interface', 'subnet', 'router'}
 
     def act(self, items):
@@ -101,8 +126,7 @@ class DeleteRouterInterface(actions.DeleteAction):
 
 
 class CreatePort(actions.CreateAction):
-    meta_type = 'meta_port'
-    depends_on = {'meta_port', 'net', 'subnet'}
+    depends_on = {'meta_port', 'network', 'subnet'}
 
     def act(self, items):
         LOG.info('Create Port is called! %s', items)

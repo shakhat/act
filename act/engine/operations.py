@@ -38,6 +38,18 @@ class CreateOperation(Operation):
         LOG.info('Created item: %s', self.item)
 
 
+class BatchCreateOperation(Operation):
+    def __init__(self, new_items, dependencies, task_id):
+        super(BatchCreateOperation, self).__init__(task_id)
+        self.new_items = new_items
+        self.dependencies = dependencies
+
+    def do(self, world):
+        for one in self.new_items:
+            world.put(one, self.dependencies)
+        LOG.info('Created items: %s', self.new_items)
+
+
 class DeleteOperation(Operation):
     def __init__(self, item, task_id):
         super(DeleteOperation, self).__init__(task_id)

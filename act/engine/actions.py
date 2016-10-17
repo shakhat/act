@@ -21,7 +21,6 @@ LOG = logging.getLogger(__name__)
 
 class Action(object):
     weight = 0.1
-    meta_type = None
     depends_on = None
     limit = None
 
@@ -30,9 +29,6 @@ class Action(object):
 
     def get_weight(self):
         return self.weight
-
-    def get_meta_type(self):
-        return self.meta_type
 
     def get_depends_on(self):
         return self.depends_on
@@ -78,13 +74,19 @@ class ReadLockAction(Action):
 class CreateAction(ReadLockAction):
     weight = 0.9
 
-    def __init__(self):
-        super(CreateAction, self).__init__()
-
     def do_action(self, items, task_id):
         action_result = self.act(items)
         return operations.CreateOperation(
             item=action_result, dependencies=items, task_id=task_id)
+
+
+class BatchCreateAction(ReadLockAction):
+    weight = 0.9
+
+    def do_action(self, items, task_id):
+        new_items = self.act(items)
+        return operations.BatchCreateOperation(
+            new_items=new_items, dependencies=items, task_id=task_id)
 
 
 class WriteLockAction(Action):

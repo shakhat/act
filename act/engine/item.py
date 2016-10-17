@@ -19,12 +19,17 @@ from act.engine import utils
 LOG = logging.getLogger(__name__)
 
 
+USE_LIMIT_INF = 100000
+
+
 class Item(object):
-    def __init__(self, item_type, payload, use_limit=1000):
+    def __init__(self, item_type, payload=None, use_limit=USE_LIMIT_INF,
+                 read_only=False):
         self.item_type = item_type
-        self.payload = payload
+        self.payload = payload or {}
         self.id = utils.make_id()  # unique id
         self.use_limit = use_limit  # max number of users of this item
+        self.read_only = read_only  # True if item cannot be deleted
         self.dependencies = []
 
         # locks
@@ -47,7 +52,7 @@ class Item(object):
 
     def can_be_locked(self):
         # True if the item can be locked exclusively
-        return not self.locked and (self.use_count == 0)
+        return not self.locked and (self.use_count == 0) and not self.read_only
 
     def take(self):
         # take this item as dependency for the new one

@@ -122,12 +122,7 @@ def process(scenario, interval):
     metrics.clear()
 
     # initialize the world
-    default_items = []
-    for action in registry.get_actions():
-        meta_type = action.get_meta_type()
-        if meta_type:
-            item = item_pkg.Item(meta_type, None)
-            default_items.append(item)
+    default_items = [item_pkg.Item('root')]
 
     world = world_pkg.World()
     for item in default_items:

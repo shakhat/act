@@ -16,7 +16,7 @@ import redis
 import rq
 import testtools
 
-from act.actions import network as a
+from act.actions import neutron as a
 from act.engine import core
 from act.engine import world as world_pkg
 
@@ -119,6 +119,11 @@ class TestEngine(testtools.TestCase):
         scenario = {
             'play': [
                 {
+                    'duration': 1,
+                    'concurrency': 1,
+                    'filter': 'Init.*',
+                },
+                {
                     'duration': 2,
                     'concurrency': 1,
                     'filter': 'CreateNetwork',
@@ -129,10 +134,14 @@ class TestEngine(testtools.TestCase):
 
         timeline = [
             {  # step 0
+                'options': [a.InitNeutronTypes],
+                'choice': a.InitNeutronTypes,
+            },
+            {  # step 1
                 'options': [a.CreateNetwork],
                 'choice': a.CreateNetwork,
             },
-            {  # step 1
+            {  # step 2
                 'options': [a.CreateNetwork],
                 'choice': a.CreateNetwork,
             },
@@ -142,16 +151,21 @@ class TestEngine(testtools.TestCase):
 
         core.process(scenario, 0)
 
-        nets = self.world.get_items('net')
+        nets = self.world.get_items('network')
         self.assertEqual(2, len(nets))
 
-        meta_net = self.world.get_one_item('meta_net')
+        meta_net = self.world.get_one_item('meta_network')
         self.assertEqual(2, meta_net.use_count)
 
     def test_dependent_create_actions(self):
         # this scenario should create 1 network and 1 subnet
         scenario = {
             'play': [
+                {
+                    'duration': 1,
+                    'concurrency': 1,
+                    'filter': 'Init.*',
+                },
                 {
                     'duration': 2,
                     'concurrency': 1,
@@ -163,10 +177,14 @@ class TestEngine(testtools.TestCase):
 
         timeline = [
             {  # step 0
+                'options': [a.InitNeutronTypes],
+                'choice': a.InitNeutronTypes,
+            },
+            {  # step 1
                 'options': [a.CreateNetwork],
                 'choice': a.CreateNetwork,
             },
-            {  # step 1
+            {  # step 2
                 'options': [a.CreateNetwork, a.CreateSubnet],
                 'choice': a.CreateSubnet,
             },
@@ -176,10 +194,10 @@ class TestEngine(testtools.TestCase):
 
         core.process(scenario, 0)
 
-        self.assertEqual(1, len(self.world.get_items('net')))
+        self.assertEqual(1, len(self.world.get_items('network')))
         self.assertEqual(1, len(self.world.get_items('subnet')))
-        self.assertEqual(1, self.world.get_one_item('meta_net').use_count)
+        self.assertEqual(1, self.world.get_one_item('meta_network').use_count)
         self.assertEqual(1, self.world.get_one_item('meta_subnet').use_count)
 
-        net = self.world.get_one_item('net')
+        net = self.world.get_one_item('network')
         self.assertEqual(1, net.use_count)
